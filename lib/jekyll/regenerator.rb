@@ -102,7 +102,7 @@ module Jekyll
             return cache[dependency] = cache[path] = true
           end
         end
-        if data["mtime"].eql? File.mtime(path)
+        if File.exist?(path) && data["mtime"].eql?(File.mtime(path))
           return cache[path] = false
         else
           return add(path)
@@ -119,7 +119,10 @@ module Jekyll
     def add_dependency(path, dependency)
       return if (metadata[path].nil? || @disabled)
 
-      metadata[path]["deps"] << dependency unless metadata[path]["deps"].include? dependency
+      if !metadata[path]["deps"].include? dependency
+        metadata[path]["deps"] << dependency
+        add(dependency) unless metadata.include?(dependency)
+      end
       regenerate? dependency
     end
 
@@ -127,9 +130,7 @@ module Jekyll
     #
     # Returns nothing.
     def write_metadata
-      File.open(metadata_file, 'w') do |f|
-        f.write(metadata.to_yaml)
-      end
+      File.binwrite(metadata_file, Marshal.dump(metadata))
     end
 
     # Produce the absolute path of the metadata file
@@ -155,7 +156,16 @@ module Jekyll
     # Returns the read metadata.
     def read_metadata
       @metadata = if !disabled? && File.file?(metadata_file)
-        SafeYAML.load(File.read(metadata_file))
+        content = File.binread(metadata_file)
+
+        begin
+          Marshal.load(content)
+        rescue TypeError
+          SafeYAML.load(content)
+        rescue ArgumentError => e
+          Jekyll.logger.warn("Failed to load #{metadata_file}: #{e}")
+          {}
+        end
       else
         {}
       end

@@ -11,7 +11,7 @@ module Jekyll
                   :gems, :plugin_manager
 
     attr_accessor :converters, :generators, :reader
-    attr_reader   :regenerator
+    attr_reader   :regenerator, :liquid_renderer
 
     # Public: Initialize a new Site.
     #
@@ -32,6 +32,8 @@ module Jekyll
 
       # Initialize incremental regenerator
       @regenerator = Regenerator.new(self)
+
+      @liquid_renderer = LiquidRenderer.new(self)
 
       self.plugin_manager = Jekyll::PluginManager.new(self)
       self.plugins        = plugin_manager.plugins_path
@@ -57,6 +59,13 @@ module Jekyll
       render
       cleanup
       write
+      print_stats
+    end
+
+    def print_stats
+      if @config['profile']
+        puts @liquid_renderer.stats_table
+      end
     end
 
     # Reset Site details.
@@ -70,11 +79,14 @@ module Jekyll
       self.static_files = []
       self.data = {}
       @collections = nil
-      @regenerator.clear_cache()
+      @regenerator.clear_cache
+      @liquid_renderer.reset
 
       if limit_posts < 0
         raise ArgumentError, "limit_posts must be a non-negative number"
       end
+
+      Jekyll::Hooks.trigger :site, :after_reset, self
     end
 
     # Load necessary libraries, plugins, converters, and generators.
@@ -132,6 +144,7 @@ module Jekyll
     def read
       reader.read
       limit_posts!
+      Jekyll::Hooks.trigger :site, :post_read, self
     end
 
     # Run each of the Generators.
@@ -150,15 +163,18 @@ module Jekyll
       relative_permalinks_are_deprecated
 
       payload = site_payload
+
+      Jekyll::Hooks.trigger :site, :pre_render, self, payload
+
       collections.each do |label, collection|
         collection.docs.each do |document|
           if regenerator.regenerate?(document)
             document.output = Jekyll::Renderer.new(self, document, payload).run
+            Jekyll::Hooks.trigger :document, :post_render, document
           end
         end
       end
 
-      payload = site_payload
       [posts, pages].flatten.each do |page_or_post|
         if regenerator.regenerate?(page_or_post)
           page_or_post.render(layouts, payload)
@@ -183,6 +199,7 @@ module Jekyll
         item.write(dest) if regenerator.regenerate?(item)
       }
       regenerator.write_metadata
+      Jekyll::Hooks.trigger :site, :post_write, self
     end
 
     # Construct a Hash of Posts indexed by the specified Post attribute.
@@ -251,7 +268,7 @@ module Jekyll
             "html_pages"   => pages.select { |page| page.html? || page.url.end_with?("/") },
             "categories"   => post_attr_hash('categories'),
             "tags"         => post_attr_hash('tags'),
-            "collections"  => collections,
+            "collections"  => collections.values.map(&:to_liquid),
             "documents"    => documents,
             "data"         => site_data
         }))
@@ -287,12 +304,12 @@ module Jekyll
     #
     # Returns
     def relative_permalinks_are_deprecated
-    if config['relative_permalinks'] && has_relative_page?
-        Jekyll::Deprecator.deprecation_message "Since v2.0, permalinks for pages" +
-                                            " in subfolders must be relative to the" +
-                                            " site source directory, not the parent" +
-                                            " directory. Check http://jekyllrb.com/docs/upgrading/"+
-                                            " for more info."
+      if config['relative_permalinks']
+        Jekyll.logger.abort_with "Since v3.0, permalinks for pages" +
+                                " in subfolders must be relative to the" +
+                                " site source directory, not the parent" +
+                                " directory. Check http://jekyllrb.com/docs/upgrading/"+
+                                " for more info."
       end
     end
 
@@ -311,7 +328,6 @@ module Jekyll
         docs + collection.docs + collection.files
       end.to_a
     end
-
 
     def each_site_file
       %w(posts pages static_files docs_to_write).each do |type|
@@ -369,14 +385,6 @@ module Jekyll
     end
 
     private
-
-    # Checks if the site has any pages containing relative links
-    #
-    # Returns a Boolean: true for usage of relateive permalinks, false
-    # if it doesn't
-    def has_relative_page?
-      pages.any? { |page| page.uses_relative_permalinks }
-    end
 
     # Limits the current posts; removes the posts which exceed the limit_posts
     #

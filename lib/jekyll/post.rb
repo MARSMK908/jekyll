@@ -68,6 +68,8 @@ module Jekyll
 
       populate_categories
       populate_tags
+
+      Jekyll::Hooks.trigger :post, :post_init, self
     end
 
     def published?

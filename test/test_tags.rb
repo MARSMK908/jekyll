@@ -30,7 +30,7 @@ class TestTags < JekyllUnitTest
 title: This is a test
 ---
 
-This document results in a markdown error with maruku
+This document has some highlighted code in it.
 
 {% highlight text %}
 #{code}
@@ -114,9 +114,9 @@ CONTENT
       assert_equal true, sanitized[:linenos]
     end
 
-    should "allow hl_linenos" do
-      sanitized = @tag.sanitized_opts({:hl_linenos => %w[1 2 3 4]}, true)
-      assert_equal %w[1 2 3 4], sanitized[:hl_linenos]
+    should "allow hl_lines" do
+      sanitized = @tag.sanitized_opts({:hl_lines => %w[1 2 3 4]}, true)
+      assert_equal %w[1 2 3 4], sanitized[:hl_lines]
     end
 
     should "allow cssclass" do
@@ -136,6 +136,14 @@ CONTENT
   end
 
   context "with the pygments highlighter" do
+    setup do
+      if jruby?
+        then skip(
+          "JRuby does not support Pygments."
+        )
+      end
+    end
+
     context "post content has highlight tag" do
       setup do
         fill_post("test", {'highlighter' => 'pygments'})
@@ -338,7 +346,7 @@ EOS
     setup do
       @content = <<CONTENT
 ---
-title: Maruku vs. RDiscount
+title: Kramdown vs. RDiscount vs. Redcarpet
 ---
 
 _FIGHT!_
@@ -351,20 +359,17 @@ puts "3..2..1.."
 CONTENT
     end
 
-    context "using Maruku" do
-      setup do
-        create_post(@content)
-      end
-
-      should "parse correctly" do
-        assert_match %r{<em>FIGHT!</em>}, @result
-        assert_match %r{<em>FINISH HIM</em>}, @result
-      end
-    end
-
     context "using RDiscount" do
       setup do
-        create_post(@content, 'markdown' => 'rdiscount')
+        if jruby?
+          then skip(
+            "JRuby does not perform well with CExt, test disabled."
+          )
+        end
+
+        create_post(@content, {
+          'markdown' => 'rdiscount'
+        })
       end
 
       should "parse correctly" do
@@ -386,7 +391,15 @@ CONTENT
 
     context "using Redcarpet" do
       setup do
-        create_post(@content, 'markdown' => 'redcarpet')
+        if jruby?
+          skip(
+            "JRuby does not perform well with CExt, test disabled."
+          )
+        end
+
+        create_post(@content, {
+          'markdown' => 'redcarpet'
+        })
       end
 
       should "parse correctly" do
@@ -587,6 +600,23 @@ CONTENT
       end
     end
 
+    context "with custom includes directory" do
+      setup do
+        content = <<CONTENT
+---
+title: custom includes directory
+---
+
+{% include custom.html %}
+CONTENT
+        create_post(content, {'includes_dir' => '_includes_custom', 'permalink' => 'pretty', 'source' => source_dir, 'destination' => dest_dir, 'read_posts' => true})
+      end
+
+      should "include file from custom directory" do
+        assert_match "custom_included", @result
+      end
+    end
+
     context "without parameters within if statement" do
       setup do
         content = <<CONTENT
@@ -601,25 +631,6 @@ CONTENT
 
       should "include file with empty parameters within if statement" do
         assert_match "<span id=\"include-param\"></span>", @result
-      end
-    end
-
-    context "with fenced code blocks with backticks" do
-
-      setup do
-        content = <<CONTENT
-```ruby
-puts "Hello world"
-```
-CONTENT
-        create_post(content, {
-          'markdown' => 'maruku',
-          'maruku' => {'fenced_code_blocks' => true}}
-        )
-      end
-
-      should "render fenced code blocks" do
-        assert_match %r{<pre class=\"ruby\"><code class=\"ruby\">puts &quot;Hello world&quot;</code></pre>}, @result.strip
       end
     end
 

@@ -9,9 +9,10 @@ module Jekyll
       # Where things are
       'source'        => Dir.pwd,
       'destination'   => File.join(Dir.pwd, '_site'),
-      'plugins'       => '_plugins',
-      'layouts'       => '_layouts',
-      'data_source'   =>  '_data',
+      'plugins_dir'   => '_plugins',
+      'layouts_dir'   => '_layouts',
+      'data_dir'      => '_data',
+      'includes_dir'  => '_includes',
       'collections'   => nil,
 
       # Handling Reading
@@ -26,7 +27,7 @@ module Jekyll
       # Filtering Content
       'show_drafts'   => nil,
       'limit_posts'   => 0,
-      'future'        => true,           # remove and make true just default
+      'future'        => false,
       'unpublished'   => false,
 
       # Plugins
@@ -45,25 +46,14 @@ module Jekyll
       'host'          => '127.0.0.1',
       'baseurl'       => '',
 
-      # Backwards-compatibility options
-      'relative_permalinks' => false,
-
       # Output Configuration
       'permalink'     => 'date',
       'paginate_path' => '/page:num',
       'timezone'      => nil,           # use the local timezone
 
       'quiet'         => false,
+      'verbose'       => false,
       'defaults'      => [],
-
-      'maruku' => {
-        'use_tex'    => false,
-        'use_divs'   => false,
-        'png_engine' => 'blahtex',
-        'png_dir'    => 'images/latex',
-        'png_url'    => '/images/latex',
-        'fenced_code_blocks' => true
-      },
 
       'rdiscount' => {
         'extensions' => []
@@ -99,18 +89,28 @@ module Jekyll
       reduce({}) { |hsh,(k,v)| hsh.merge(k.to_s => v) }
     end
 
+    def get_config_value_with_override(config_key, override)
+      override[config_key] || self[config_key] || DEFAULTS[config_key]
+    end
+
     # Public: Directory of the Jekyll source folder
     #
     # override - the command-line options hash
     #
     # Returns the path to the Jekyll source directory
     def source(override)
-      override['source'] || self['source'] || DEFAULTS['source']
+      get_config_value_with_override('source', override)
     end
 
-    def quiet?(override = {})
-      override['quiet'] || self['quiet'] || DEFAULTS['quiet']
+    def quiet(override = {})
+      get_config_value_with_override('quiet', override)
     end
+    alias_method :quiet?, :quiet
+
+    def verbose(override = {})
+      get_config_value_with_override('verbose', override)
+    end
+    alias_method :verbose?, :verbose
 
     def safe_load_file(filename)
       case File.extname(filename)
@@ -130,8 +130,8 @@ module Jekyll
     #
     # Returns an Array of config files
     def config_files(override)
-      # Be quiet quickly.
-      Jekyll.logger.log_level = :error if quiet?(override)
+      # Adjust verbosity quickly
+      Jekyll.logger.adjust_verbosity(:quiet => quiet?(override), :verbose => verbose?(override))
 
       # Get configuration from <source>/_config.yml or <source>/<config_file>
       config_files = override.delete('config')
@@ -220,14 +220,10 @@ module Jekyll
         config.delete('server')
       end
 
-      if config.key? 'server_port'
-        Jekyll::Deprecator.deprecation_message "The 'server_port' configuration option" +
-                            " has been renamed to 'port'. Please update your config" +
-                            " file accordingly."
-        # copy but don't overwrite:
-        config['port'] = config['server_port'] unless config.key?('port')
-        config.delete('server_port')
-      end
+      renamed_key 'server_port', 'port', config
+      renamed_key 'plugins', 'plugins_dir', config
+      renamed_key 'layouts', 'layouts_dir', config
+      renamed_key 'data_source', 'data_dir', config
 
       if config.key? 'pygments'
         Jekyll::Deprecator.deprecation_message "The 'pygments' configuration option" +
@@ -257,9 +253,11 @@ module Jekyll
       end
 
       if config.fetch('markdown', 'kramdown').to_s.downcase.eql?("maruku")
-        Jekyll::Deprecator.deprecation_message "You're using the 'maruku' " +
-          "Markdown processor. Maruku support has been deprecated and will " +
-          "be removed in 3.0.0. We recommend you switch to Kramdown."
+        Jekyll.logger.abort_with "Error:", "You're using the 'maruku' " +
+          "Markdown processor, which has been removed as of 3.0.0. " +
+          "We recommend you switch to Kramdown. To do this, replace " +
+          "`markdown: maruku` with `markdown: kramdown` in your " +
+          "`_config.yml` file."
       end
 
       config
@@ -275,6 +273,15 @@ module Jekyll
       end
 
       config
+    end
+
+    def renamed_key(old, new, config, allowed_values = nil)
+      if config.key?(old)
+        Jekyll::Deprecator.deprecation_message "The '#{old}' configuration" +
+          "option has been renamed to '#{new}'. Please update your config " +
+          "file accordingly."
+        config[new] = config.delete(old)
+      end
     end
   end
 end

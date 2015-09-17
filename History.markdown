@@ -2,9 +2,12 @@
 
 ### Major Enhancements
 
+  * Liquid profiler (i.e. know how fast or slow your templates render) (#3762)
   * Incremental regeneration (#3116)
-  * Drop support for Ruby 1.9.3. (#3235)
+  * Add Hooks: a new kind of plugin (#3553)
   * Upgrade to Liquid 3.0.0 (#3002)
+  * Add basic support for JRuby (commit: 0f4477)
+  * Drop support for Ruby 1.9.3. (#3235)
   * Support Ruby v2.2 (#3234)
   * Support RDiscount 2 (#2767)
   * Remove most runtime deps (#3323)
@@ -12,6 +15,11 @@
   * Mimic GitHub Pages `.html` extension stripping behavior in WEBrick (#3452)
   * Always include file extension on output files (#3490)
   * Improved permalinks for pages and collections (#3538)
+  * Sunset (i.e. remove) Maruku (#3655)
+  * Remove support for relative permalinks (#3679)
+  * Iterate over `site.collections` as an array instead of a hash. (#3670)
+  * Adapt StaticFile for collections, config defaults (#3823)
+  * Add a Code of Conduct for the Jekyll project (#3925)
 
 ### Minor Enhancements
 
@@ -59,6 +67,26 @@
   * Removed the word 'Jekyll' a few times from the comments (#3617)
   * `bin/jekyll`: with no args, exit with exit code 1 (#3619)
   * Incremental build if destination file missing (#3614)
+  * Static files `mtime` liquid should return a `Time` obj (#3596)
+  * Use `Jekyll::Post`s for both LSI indexing and lookup. (#3629)
+  * Add `charset=utf-8` for HTML and XML pages in WEBrick (#3649)
+  * Set log level to debug when verbose flag is set (#3665)
+  * Added a mention on the Gemfile to complete the instructions (#3671)
+  * Perf: Cache `Document#to_liquid` and invalidate where necessary (#3693)
+  * Perf: `Jekyll::Cleaner#existing_files`: Call `keep_file_regex` and
+    `keep_dirs` only once, not once per iteration (#3696)
+  * Omit jekyll/jekyll-help from list of resources. (#3698)
+  * Add basic `jekyll doctor` test to detect fsnotify (OSX) anomalies. (#3704)
+  * Added talk.jekyllrb.com to "Have questions?" (#3694)
+  * Performance: Sort files only once (#3707)
+  * Performance: Marshal metadata (#3706)
+  * Upgrade highlight wrapper from `div` to `figure` (#3779)
+  * Upgrade mime-types to `~> 2.6` (#3795)
+  * Update windows.md with Ruby version info (#3818)
+  * Make the directory for includes configurable (#3782)
+  * Rename directory configurations to match `*_dir` convention for consistency (#3782)
+  * Internal: trigger hooks by owner symbol (#3871)
+  * Update MIME types from mime-db (#3933)
 
 ### Bug Fixes
 
@@ -85,6 +113,27 @@
   * Removed the trailing slash from the example `/blog` baseurl comment (#3485)
   * Clear the regenerator cache every time we process (#3592)
   * Readd (bring back) minitest-profile (#3628)
+  * Add WOFF2 font MIME type to Jekyll server MIME types (#3647)
+  * Be smarter about extracting the extname in `StaticFile` (#3632)
+  * Process metadata for all dependencies (#3608)
+  * Show error message if the YAML front matter on a page/post is invalid. (#3643)
+  * Upgrade redcarpet to 3.2 (Security fix: OSVDB-120415) (#3652)
+  * Create #mock_expects that goes directly to RSpec Mocks. (#3658)
+  * Open `.jekyll-metadata` in binary mode to read binary Marshal data (#3713)
+  * Incremental regeneration: handle deleted, renamed, and moved dependencies (#3717)
+  * Fix typo on line 19 of pagination.md (#3760)
+  * Fix it so that 'blog.html' matches 'blog.html' (#3732)
+  * Remove occasionally-problematic `ensure` in `LiquidRenderer` (#3811)
+  * Fixed an unclear code comment in site template SCSS (#3837)
+  * Fix reading of binary metadata file (#3845)
+  * Remove var collision with site template header menu iteration variable (#3838)
+  * Change non-existent `hl_linenos` to `hl_lines` to allow passthrough in safe mode (#3787)
+  * Add missing flag to disable the watcher (#3820)
+  * Update CI guide to include more direct explanations of the flow (#3891)
+  * Set `future` to `false` in the default config (#3892)
+  * filters: `where` should compare stringified versions of input & comparator (#3935)
+  * Read build options for `jekyll clean` command (#3828)
+  * Fix #3970: Use Gem::Version to compare versions, not >.
 
 ### Development Fixes
 
@@ -111,6 +160,18 @@
   * Convert remaining textile test documents to markdown (#3528)
   * Migrate the tests to use rspec-mocks (#3552)
   * Remove `activesupport` (#3612)
+  * Added tests for `Jekyll:StaticFile` (#3633)
+  * Force minitest version to 5.5.1 (#3657)
+  * Update the way cucumber accesses Minitest assertions (#3678)
+  * Add `script/rubyprof` to generate cachegrind callgraphs (#3692)
+  * Upgrade cucumber to 2.x (#3795)
+  * Update Kramdown. (#3853)
+  * Updated the scripts shebang for portability (#3858)
+  * Update JRuby testing to 9K ([3ab386f](https://github.com/jekyll/jekyll/commit/3ab386f1b096be25a24fe038fc70fd0fb08d545d))
+  * Organize dependencies into dev and test groups. (#3852)
+  * Contributing.md should refer to `script/cucumber` (#3894)
+  * Update contributing documentation to reflect workflow updates (#3895)
+  * Add script to vendor mime types (#3933)
 
 ### Site Enhancements
 
@@ -164,6 +225,29 @@
   * Document addition of variable parameters to an include (#3581)
   * Add `jekyll-files` to the list of third-party plugins. (#3586)
   * Define the `install` step in the CI example `.travis.yml` (#3622)
+  * Expand collections documentation. (#3638)
+  * Add the "warning" note label to excluding `vendor` in the CI docs page (#3623)
+  * Upgrade pieces of the Ugrading guide for Jekyll 3 (#3607)
+  * Showing how to access specific data items (#3468)
+  * Clarify pagination works from within HTML files (#3467)
+  * Add note to `excerpt_separator` documentation that it can be set globally (#3667)
+  * Fix some names on Troubleshooting page (#3683)
+  * Add `remote_file_content` tag plugin to list of third-party plugins (#3691)
+  * Update the Redcarpet version on the Configuration page. (#3743)
+  * Update the link in the welcome post to point to Jekyll Talk (#3745)
+  * Update link for navbars with data attributes tutorial (#3728)
+  * Add `jekyll-asciinema` to list of third-party plugins (#3750)
+  * Update pagination example to be agnostic to first pagination dir (#3763)
+  * Detailed instructions for rsync deployment method (#3848)
+  * Add Jekyll Portfolio Generator to list of plugins (#3883)
+  * Add `site.html_files` to variables docs (#3880)
+  * Add Static Publisher tool to list of deployment methods (#3865)
+  * Fix a few typos. (#3897)
+  * Add `jekyll-youtube` to the list of third-party plugins (#3931)
+  * Add Views Router plugin (#3950)
+  * Update install docs (Core dependencies, Windows reqs, etc) (#3769)
+  * Use Jekyll Feed for jekyllrb.com (#3736)
+  * Add jekyll-umlauts to plugins.md ($3966)
 
 ## 2.5.3 / 2014-12-22
 

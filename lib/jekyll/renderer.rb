@@ -35,6 +35,8 @@ module Jekyll
         "page" => document.to_liquid
       }, site_payload || site.site_payload)
 
+      Jekyll::Hooks.trigger :document, :pre_render, document, payload
+
       info = {
         filters:   [Jekyll::Filters],
         registers: { :site => site, :page => payload['page'] }
@@ -47,7 +49,7 @@ module Jekyll
       output = document.content
 
       if document.render_with_liquid?
-        output = render_liquid(output, payload, info)
+        output = render_liquid(output, payload, info, document.path)
       end
 
       output = convert(output)
@@ -90,7 +92,7 @@ module Jekyll
     #
     # Returns the content, rendered by Liquid.
     def render_liquid(content, payload, info, path = nil)
-      Liquid::Template.parse(content).render!(payload, info)
+      site.liquid_renderer.file(path).parse(content).render!(payload, info)
     rescue Tags::IncludeTagError => e
       Jekyll.logger.error "Liquid Exception:", "#{e.message} in #{e.path}, included in #{path || document.relative_path}"
       raise e
@@ -136,7 +138,7 @@ module Jekyll
           layout.content,
           payload,
           info,
-          File.join(site.config['layouts'], layout.name)
+          File.join(site.config['layouts_dir'], layout.name)
         )
 
         # Add layout to dependency tree
